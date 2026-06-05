@@ -1,0 +1,360 @@
+// prisma/schema.prisma
+// SafariTu — production-ready schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────
+// MULTI-TENANCY
+// ─────────────────────────────
+
+model Operator {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  email            String   @unique
+  phone            String?
+  logoUrl          String?
+  coverImageUrl    String?
+  bio              String?
+  website          String?
+  plan             Plan     @default(STARTER)
+  stripeCustomerId String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tours        Tour[]
+  bookings     Booking[]
+  customers    Customer[]
+  users        OperatorUser[]
+  subscription Subscription?
+  boosts       TourBoost[]
+}
+
+model OperatorUser {
+  id         String   @id @default(cuid())
+  operatorId String
+  supabaseId String   @unique
+  role       UserRole @default(MANAGER)
+  createdAt  DateTime @default(now())
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────
+// DESTINATIONS
+// ─────────────────────────────
+
+model Destination {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  country     String
+  description String?
+  imageUrl    String?
+  emoji       String?
+  featured    Boolean @default(false)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  tours Tour[]
+
+  @@index([featured, sortOrder])
+}
+
+// ─────────────────────────────
+// MONETIZATION
+// ─────────────────────────────
+
+model Subscription {
+  id                String    @id @default(cuid())
+  operatorId        String    @unique
+  plan              Plan
+  status            SubStatus @default(TRIALING)
+  stripeSubId       String?   @unique
+  stripePriceId     String?
+  commissionRate    Float
+  trialEndsAt       DateTime?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+}
+
+model TourBoost {
+  id                    String   @id @default(cuid())
+  tourId                String
+  operatorId            String
+  boostScore            Float    @default(30)
+  durationDays          Int      @default(7)
+  startsAt              DateTime @default(now())
+  endsAt                DateTime
+  amountPaid            Decimal  @db.Decimal(10, 2)
+  currency              String   @default("KES")
+  stripePaymentIntentId String?
+  paid                  Boolean  @default(false)
+  createdAt             DateTime @default(now())
+
+  tour     Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([tourId, endsAt])
+  @@index([operatorId])
+}
+
+// ─────────────────────────────
+// TOURS
+// ─────────────────────────────
+
+model Tour {
+  id              String     @id @default(cuid())
+  operatorId      String
+  destinationId   String?
+  title           String
+  slug            String
+  description     String
+  highlights      String[]
+  includes        String[]
+  excludes        String[]
+  durationDays    Int
+  durationNights  Int
+  difficulty      Difficulty @default(MODERATE)
+  maxCapacity     Int
+  minGroupSize    Int        @default(1)
+  pricePerPerson  Decimal    @db.Decimal(10, 2)
+  currency        String     @default("KES")
+  coverImageUrl   String?
+  imageUrls       String[]
+  location        String?
+  country         String?    @default("Kenya")
+
+  isFeatured      Boolean @default(false)
+  isTopPick       Boolean @default(false)
+  topPickScore    Float   @default(0)
+  visibilityScore Float   @default(0)
+
+  status    TourStatus @default(DRAFT)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  operator      Operator       @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  destination   Destination?   @relation(fields: [destinationId], references: [id])
+  itineraryDays ItineraryDay[]
+  departures    Departure[]
+  bookings      Booking[]
+  boosts        TourBoost[]
+
+  @@unique([operatorId, slug])
+  @@index([operatorId, status])
+  @@index([destinationId])
+  @@index([visibilityScore])
+  @@index([isFeatured])
+  @@index([isTopPick, topPickScore])
+}
+
+model ItineraryDay {
+  id            String   @id @default(cuid())
+  tourId        String
+  dayNumber     Int
+  title         String
+  description   String
+  accommodation String?
+  mealsIncluded String[]
+  activities    String[]
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, dayNumber])
+}
+
+// ─────────────────────────────
+// DEPARTURES
+// ─────────────────────────────
+
+model Departure {
+  id            String          @id @default(cuid())
+  tourId        String
+  startDate     DateTime
+  endDate       DateTime
+  capacity      Int
+  bookedCount   Int             @default(0)
+  priceOverride Decimal?        @db.Decimal(10, 2)
+  status        DepartureStatus @default(AVAILABLE)
+  notes         String?
+  createdAt     DateTime        @default(now())
+
+  tour     Tour      @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([tourId, startDate])
+  @@index([status])
+}
+
+// ─────────────────────────────
+// BOOKINGS
+// ─────────────────────────────
+
+model Booking {
+  id               String        @id @default(cuid())
+  reference        String        @unique
+  operatorId       String
+  tourId           String
+  departureId      String
+  customerId       String
+  partySize        Int
+  totalAmount      Decimal       @db.Decimal(10, 2)
+  depositAmount    Decimal       @db.Decimal(10, 2)
+  balanceDue       Decimal       @db.Decimal(10, 2)
+  currency         String        @default("KES")
+  commissionRate   Float         @default(0.05)
+  commissionAmount Decimal       @db.Decimal(10, 2) @default(0)
+  paymentStatus    PaymentStatus @default(PENDING)
+  bookingStatus    BookingStatus @default(CONFIRMED)
+  specialRequests  String?
+  internalNotes    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  operator  Operator  @relation(fields: [operatorId], references: [id])
+  tour      Tour      @relation(fields: [tourId], references: [id])
+  departure Departure @relation(fields: [departureId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+  payments  Payment[]
+
+  @@index([operatorId, bookingStatus])
+  @@index([operatorId, paymentStatus])
+  @@index([customerId])
+}
+
+// ─────────────────────────────
+// CUSTOMERS
+// ─────────────────────────────
+
+model Customer {
+  id          String     @id @default(cuid())
+  operatorId  String
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  country     String?
+  nationality String?
+  notes       String?
+  tags        String[]
+  leadStatus  LeadStatus @default(CUSTOMER)
+  source      String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  operator Operator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([operatorId, email])
+  @@index([operatorId, leadStatus])
+}
+
+// ─────────────────────────────
+// PAYMENTS
+// ─────────────────────────────
+
+model Payment {
+  id                String          @id @default(cuid())
+  bookingId         String
+  amount            Decimal         @db.Decimal(10, 2)
+  currency          String
+  provider          PaymentProvider
+  providerReference String?
+  status            PaymentStatus   @default(PENDING)
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime        @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([provider, status])
+}
+
+// ─────────────────────────────
+// ENUMS (FIXED)
+// ─────────────────────────────
+
+enum Plan {
+  STARTER
+  GROWTH
+  PRO
+}
+
+enum SubStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  UNPAID
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  GUIDE
+}
+
+enum TourStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DepartureStatus {
+  AVAILABLE
+  FULL
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MPESA
+  FLUTTERWAVE
+  MANUAL
+}
+
+enum Difficulty {
+  EASY
+  MODERATE
+  CHALLENGING
+  EXTREME
+}
+
+enum LeadStatus {
+  LEAD
+  PROSPECT
+  CUSTOMER
+  VIP
+  INACTIVE
+}

@@ -1,0 +1,4 @@
+-- Baseline migration.
+-- Schema was created via prisma db push before migration history was initialised.
+-- This file marks the existing database state as the starting point.
+-- No changes are applied — Prisma will only track new migrations from here.
