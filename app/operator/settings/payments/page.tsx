@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/supabase/server";
 import { getOperatorBySupabaseId } from "@/lib/prisma/operator";
 import { prisma } from "@/lib/prisma";
 import OperatorShell from "@/components/layout/OperatorShell";
-import PaymentSettingsForm from "./PaymentSettingsForm";
+//import PaymentSettingsForm from "./PaymentSettingsForm";
 import { maskSecret } from "./utils";
 //import { maskSecret } from "./actions";
 
