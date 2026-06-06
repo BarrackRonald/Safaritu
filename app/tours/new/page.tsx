@@ -3,7 +3,7 @@
 
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/supabase/server";
-import { getOperatorBySupabaseId } from "@/lib/prisma/operators";
+import { getOperatorBySupabaseId } from "@/lib/prisma/operator";
 import OperatorShell from "@/components/layout/OperatorShell";
 import TourForm from "@/components/tours/TourForm";
 import Link from "next/link";
