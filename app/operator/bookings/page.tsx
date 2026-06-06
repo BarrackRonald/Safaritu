@@ -5,8 +5,8 @@ import { getAuthUser } from "@/lib/supabase/server";
 import { getOperatorBySupabaseId } from "@/lib/prisma/operator";
 import { prisma } from "@/lib/prisma";
 import OperatorShell from "@/components/layout/OperatorShell";
-import BookingStatusBadge from "@/components/bookings/BookingStatusBadge";
-import PaymentStatusBadge from "@/components/bookings/PaymentStatusBadge";
+//import BookingStatusBadge from "@/components/bookings/BookingStatusBadge";
+//import PaymentStatusBadge from "@/components/bookings/PaymentStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Bookings — SafariTu" };
