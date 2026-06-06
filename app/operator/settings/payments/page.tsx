@@ -5,7 +5,8 @@ import { getOperatorBySupabaseId } from "@/lib/prisma/operator";
 import { prisma } from "@/lib/prisma";
 import OperatorShell from "@/components/layout/OperatorShell";
 import PaymentSettingsForm from "./PaymentSettingsForm";
-import { maskSecret } from "./actions";
+import { maskSecret } from "./utils";
+//import { maskSecret } from "./actions";
 
 export const metadata = { title: "Payment Settings — SafariTu" };
 export const dynamic = "force-dynamic";
